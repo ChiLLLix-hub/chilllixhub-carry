@@ -1,87 +1,73 @@
-ESX = nil
+local QBCore = exports['qb-core']:GetCoreObject()
 
-local give = false
-local usedRope = false
-
-TriggerEvent('esx:getSharedObject', function(obj)
-	ESX = obj
-end)
-
-RegisterServerEvent('esx_barbie_lyftupp:checkRope')
-AddEventHandler('esx_barbie_lyftupp:checkRope', function()
-	local _source = source
-	local xPlayer = ESX.GetPlayerFromId(_source)
-	local ropeQuantity = xPlayer.getInventoryItem('Rope').count
-	
-	if ropeQuantity > 0 then
-		TriggerClientEvent('esx_barbie_lyftupp:trueRope', source) -- เปิด
-	else
-		TriggerClientEvent('esx_barbie_lyftupp:falseRope', source) -- ปิด
+-- Check if the player has a rope in their inventory
+RegisterNetEvent('qb_carry:server:checkRope', function()
+	local src = source
+	local Player = QBCore.Functions.GetPlayer(src)
+	if Player then
+		local ropeItem = Player.Functions.GetItemByName('rope')
+		if ropeItem ~= nil and ropeItem.amount > 0 then
+			TriggerClientEvent('qb_carry:client:trueRope', src)
+		else
+			TriggerClientEvent('qb_carry:client:falseRope', src)
+		end
 	end
 end)
 
-RegisterServerEvent('esx_barbie_lyftupp:removeRope')
-AddEventHandler('esx_barbie_lyftupp:removeRope', function()
-	local _source = source
-	local xPlayer = ESX.GetPlayerFromId(_source)
-	
-	xPlayer.removeInventoryItem('Rope', 1)
-	TriggerClientEvent('esx_barbie_lyftupp:trueUsedRope', source)
-	
+-- Remove one rope from the player's inventory
+RegisterNetEvent('qb_carry:server:removeRope', function()
+	local src = source
+	local Player = QBCore.Functions.GetPlayer(src)
+	if Player then
+		Player.Functions.RemoveItem('rope', 1)
+		TriggerClientEvent('qb_carry:client:trueUsedRope', src)
+	end
 end)
 
-RegisterServerEvent('cmg3_animations:sync')
-AddEventHandler('cmg3_animations:sync', function(target, animationLib,animationLib2, animation, animation2, distans, distans2, height,targetSrc,length,spin,controlFlagSrc,controlFlagTarget,animFlagTarget,attachFlag)
-	print("got to srv cmg3_animations:sync")
-	print("got that fucking attach flag as: " .. tostring(attachFlag))
-	TriggerClientEvent('cmg3_animations:syncTarget', targetSrc, source, animationLib2, animation2, distans, distans2, height, length,spin,controlFlagTarget,animFlagTarget,attachFlag)
-	print("triggering to target: " .. tostring(targetSrc))
-	TriggerClientEvent('cmg3_animations:syncMe', source, animationLib, animation,length,controlFlagSrc,animFlagTarget)
+-- Hostage sync: relay animation data to both participants
+RegisterNetEvent('cmg3_animations:sync', function(target, animationLib, animationLib2, animation, animation2, distans, distans2, height, targetSrc, length, spin, controlFlagSrc, controlFlagTarget, animFlagTarget, attachFlag)
+	TriggerClientEvent('cmg3_animations:syncTarget', targetSrc, source, animationLib2, animation2, distans, distans2, height, length, spin, controlFlagTarget, animFlagTarget, attachFlag)
+	TriggerClientEvent('cmg3_animations:syncMe', source, animationLib, animation, length, controlFlagSrc, animFlagTarget)
 end)
 
-RegisterServerEvent('cmg3_animations:stop')
-AddEventHandler('cmg3_animations:stop', function(targetSrc)
+RegisterNetEvent('cmg3_animations:stop', function(targetSrc)
 	TriggerClientEvent('cmg3_animations:cl_stop', targetSrc)
 end)
 
-RegisterServerEvent('esx_barbie_lyftupp:lyfter')
-AddEventHandler('esx_barbie_lyftupp:lyfter', function(target)
-	local targetPlayer = ESX.GetPlayerFromId(target)
-
-	TriggerClientEvent('esx_barbie_lyftupp:upplyft', targetPlayer.source, source)
+-- Trigger the drag/lift animation on the target player
+RegisterNetEvent('qb_carry:server:lyfter', function(target)
+	local Player = QBCore.Functions.GetPlayer(target)
+	if Player then
+		TriggerClientEvent('qb_carry:client:upplyft', Player.PlayerData.source, source)
+	end
 end)
 
-RegisterServerEvent('cmg2_animations:stop')
-AddEventHandler('cmg2_animations:stop', function(targetSrc)
+-- Carry (fireman carry) sync
+RegisterNetEvent('cmg2_animations:sync', function(target, animationLib, animationLib2, animation, animation2, distans, distans2, height, targetSrc, length, spin, controlFlagSrc, controlFlagTarget, animFlagTarget)
+	TriggerClientEvent('cmg2_animations:syncTarget', targetSrc, source, animationLib2, animation2, distans, distans2, height, length, spin, controlFlagTarget, animFlagTarget)
+	TriggerClientEvent('cmg2_animations:syncMe', source, animationLib, animation, length, controlFlagSrc, animFlagTarget)
+end)
+
+RegisterNetEvent('cmg2_animations:stop', function(targetSrc)
 	TriggerClientEvent('cmg2_animations:cl_stop', targetSrc)
 end)
 
-RegisterServerEvent('esx_barbie_lyftupp:lyfteruppn')
-AddEventHandler('esx_barbie_lyftupp:lyfteruppn', function(source)
-		TriggerClientEvent('esx:showNotification', source, ('Someone is trying to lift you up...'))
-
+-- Notify a player that someone is trying to lift them
+RegisterNetEvent('qb_carry:server:lyfteruppn', function(targetSrc)
+	if QBCore.Functions.GetPlayer(targetSrc) then
+		TriggerClientEvent('QBCore:Notify', targetSrc, 'Someone is trying to lift you up...', 'primary')
+	end
 end)
 
-RegisterServerEvent('esx_barbie_lyftupp:sync')
-AddEventHandler('esx_barbie_lyftupp:sync', function(target, animationLib, animation, animation2, distans, distans2, height,targetSrc,length,spin,controlFlagSrc,controlFlagTarget,animFlagTarget)
-	print("got to srv esx_barbie_lyftupp:sync")
-	TriggerClientEvent('esx_barbie_lyftupp:syncTarget', targetSrc, source, animationLib, animation2, distans, distans2, height, length,spin,controlFlagTarget,animFlagTarget)
-	print("triggering to target: " .. tostring(targetSrc))
-	TriggerClientEvent('esx_barbie_lyftupp:syncMe', source, animationLib, animation,length,controlFlagSrc,animFlagTarget)
+-- PiggyBack sync
+RegisterNetEvent('qb_carry:server:sync', function(target, animationLib, animation, animation2, distans, distans2, height, targetSrc, length, spin, controlFlagSrc, controlFlagTarget, animFlagTarget)
+	TriggerClientEvent('qb_carry:client:syncTarget', targetSrc, source, animationLib, animation2, distans, distans2, height, length, spin, controlFlagTarget, animFlagTarget)
+	TriggerClientEvent('qb_carry:client:syncMe', source, animationLib, animation, length, controlFlagSrc, animFlagTarget)
 end)
 
-RegisterServerEvent('cmg2_animations:sync')
-AddEventHandler('cmg2_animations:sync', function(target, animationLib,animationLib2, animation, animation2, distans, distans2, height,targetSrc,length,spin,controlFlagSrc,controlFlagTarget,animFlagTarget)
-	print("got to srv cmg2_animations:sync")
-	TriggerClientEvent('cmg2_animations:syncTarget', targetSrc, source, animationLib2, animation2, distans, distans2, height, length,spin,controlFlagTarget,animFlagTarget)
-	print("triggering to target: " .. tostring(targetSrc))
-	TriggerClientEvent('cmg2_animations:syncMe', source, animationLib, animation,length,controlFlagSrc,animFlagTarget)
+RegisterNetEvent('qb_carry:server:stop', function(targetSrc)
+	TriggerClientEvent('qb_carry:client:cl_stop', targetSrc)
 end)
 
-RegisterServerEvent('esx_barbie_lyftupp:stop')
-AddEventHandler('esx_barbie_lyftupp:stop', function(targetSrc)
-	TriggerClientEvent('esx_barbie_lyftupp:cl_stop', targetSrc)
-end)
-
-print('esx_lyftupp_piggyback 1.0 by AOTCARIBBEAN')
+print('qb_carry 2.0 by AOTCARIBBEAN - QBCore edition')
 
